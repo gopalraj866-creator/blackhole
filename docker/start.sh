@@ -380,6 +380,7 @@ run_video() {
         -reconnect_streamed 1 \
         -reconnect_delay_max 5 \
         -re \
+        -stream_loop -1 \
         -i "$url" \
         -loop 1 -i overlay.png \
         -loop 1 -i "$DOT_MARKER" \
