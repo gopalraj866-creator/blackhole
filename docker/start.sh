@@ -41,20 +41,20 @@ echo "========================================"
 
 FONT="font.ttf"
 GOLD="0xE8A33D"
+RED="0xE8453C"
 ASSET_DIR="panel_assets"
-INFO_FILE="galaxy_info.txt"
-SLOT=6            # seconds each headline is shown
-FACT_SLOT=8       # seconds each fun fact is shown
 CHANNEL_NAME="Technical Talk India"
 # No background panels, so text gets a soft outline + shadow to stay
 # readable on top of the video (sized for 1080p).
 SHADOW="shadowcolor=black@0.8:shadowx=3:shadowy=3:borderw=3:bordercolor=black@0.55"
-HEADLINE_FONTSIZE=32
-HEADLINE_LINE_SPACING=14
-HEADLINE_LINE_H=$((HEADLINE_FONTSIZE + HEADLINE_LINE_SPACING))
 
 # Don't show "N watching now" until the live viewer count reaches this many.
 VIEWER_MIN_TO_SHOW=10
+
+# Top-left LIVE ticker position (1920x1080 coordinates). Sits just under the
+# video's own title block; change these two numbers to move it.
+LIVE_X=42
+LIVE_Y=118
 
 # Approximate center + radius (in 1920x1080 output coordinates) of the
 # subscribe icon baked into overlay.png; a pulsing gold ring is drawn
@@ -158,71 +158,6 @@ if [ "$SHOW_STATS" = true ]; then
 fi
 
 trap 'kill "$CLOCK_PID" 2>/dev/null || true; [ -n "$SUBS_PID" ] && kill "$SUBS_PID" 2>/dev/null || true; [ -n "$VIEWERS_PID" ] && kill "$VIEWERS_PID" 2>/dev/null || true' EXIT
-
-#############################################
-# Static text
-#############################################
-printf 'BLACK HOLES — LIVE'                  > "$ASSET_DIR/title1.txt"
-printf 'B L A C K   H O L E   T R A C K E R' > "$ASSET_DIR/header.txt"
-printf 'EVENT HORIZON · SINGULARITY · ACCRETION · GRAVITY' > "$ASSET_DIR/eyebrow.txt"
-printf 'DID YOU KNOW'                        > "$ASSET_DIR/fact_label.txt"
-
-#############################################
-# Default headline / fact pools (used if
-# galaxy_info.txt / facts.txt are missing)
-#############################################
-DEFAULT_HEADLINES=(
-    "Exploring black holes live: event horizons, accretion disks, jets and gravitational waves."
-    "A black hole is a region of space where gravity is so strong that nothing, not even light, can escape."
-    "The event horizon is the point of no return around a black hole."
-    "Stellar-mass black holes form when massive stars collapse at the end of their lives."
-    "Supermassive black holes, millions to billions of times the Sun's mass, sit at the centers of most large galaxies."
-    "Sagittarius A*, at the heart of our Milky Way, holds about 4 million times the mass of the Sun."
-    "In 2019, the Event Horizon Telescope captured the first image of a black hole's shadow, in galaxy M87."
-    "In 2022, astronomers revealed the first image of Sagittarius A*, the black hole at the center of our galaxy."
-    "Matter spiraling into a black hole forms a superheated accretion disk that glows brightly in X-rays."
-    "Some black holes launch jets of plasma at nearly the speed of light, stretching for thousands of light-years."
-    "In 2015, LIGO made the first direct detection of gravitational waves, from two merging black holes."
-    "Time runs slower near a black hole: the stronger the gravity, the slower the clock."
-    "Hawking radiation predicts that black holes slowly lose energy and can eventually evaporate."
-    "At the singularity, our current laws of physics break down."
-    "Black holes do not roam space sucking everything in. Far away, their gravity acts like any object of the same mass."
-)
-
-DEFAULT_FACTS=(
-    "A black hole's gravity is so strong that its escape velocity at the event horizon equals the speed of light."
-    "The event horizon is the boundary beyond which nothing can return, not even light."
-    "The Schwarzschild radius of the Sun would be only about 3 kilometers."
-    "If Earth were squeezed into a black hole, it would be only about 9 millimeters across."
-    "Karl Schwarzschild found the first exact black hole solution to Einstein's equations in 1916."
-    "The term \"black hole\" was popularized by physicist John Wheeler in 1967."
-    "Stellar-mass black holes typically weigh from a few to a few dozen times the mass of the Sun."
-    "Supermassive black holes can weigh millions to billions of solar masses."
-    "Sagittarius A* is about 26,000 light-years from Earth."
-    "Sagittarius A* has about 4 million times the mass of the Sun."
-    "M87* is about 55 million light-years away and holds roughly 6.5 billion solar masses."
-    "The Event Horizon Telescope links radio dishes around the world into one Earth-sized telescope."
-    "The 2020 Nobel Prize in Physics honored Roger Penrose, Reinhard Genzel and Andrea Ghez for black hole research."
-    "Gaia BH1, about 1,560 light-years away, is one of the closest known black holes to Earth."
-    "The Milky Way may contain tens of millions of stellar-mass black holes."
-    "Cygnus X-1, discovered as an X-ray source, was one of the first strong black hole candidates."
-    "Gas in an accretion disk can heat up to millions of degrees before falling in."
-    "Quasars are the blazing cores of distant galaxies powered by feeding supermassive black holes."
-    "Black hole jets can stretch far beyond their host galaxy."
-    "Near a black hole, tidal forces can stretch objects, an effect called spaghettification."
-    "Light can orbit a black hole at the photon sphere, about 1.5 times the horizon radius for a non-spinning one."
-    "Spinning black holes drag space itself around with them, an effect called frame dragging."
-    "The first gravitational waves seen, GW150914, came from two black holes merging about 1.3 billion light-years away."
-    "LIGO, Virgo and KAGRA keep detecting black hole mergers through ripples in spacetime."
-    "Stephen Hawking showed in 1974 that black holes should emit faint thermal radiation."
-    "A black hole with the mass of the Sun would have a Hawking temperature far colder than the cosmic microwave background."
-    "If the Sun became a black hole of the same mass, Earth would keep orbiting it as before."
-    "Inside the event horizon, all paths lead toward the singularity."
-    "A black hole's shadow appears about 2.5 times larger than its event horizon."
-    "Intermediate-mass black holes, between stellar and supermassive, are rarer and harder to find."
-    "Astronomers track stars orbiting Sagittarius A* to weigh the black hole at our galaxy's center."
-    "Some black holes spin at a large fraction of the speed of light at their horizons."
-)
 
 #############################################
 # build_labels_chain: optional per-video
@@ -369,94 +304,15 @@ build_labels_chain() {
 }
 
 #############################################
-# prepare_video_content: loads headlines +
-# facts for the video about to stream and
-# builds the filter chain (information text
-# only — no side panel, no bottom bar).
-#
-# Per-video override files:
-#   <basename>.headlines.txt / <basename>.facts.txt
+# prepare_video_content: builds the filter chain.
+# The video already carries its own info panels, so
+# the only additions are the top-left LIVE ticker,
+# the credit/stats lines and (in build_final_filter)
+# the watermark + subscribe ring.
 #############################################
 prepare_video_content() {
     local url="$1"
-    local base
-    base="${url##*/}"
-    base="${base%.*}"
 
-    # `local` matters: the main loop uses a bare `i` too.
-    local i idx
-
-    RAW_LINES=()
-    if [ -f "${base}.headlines.txt" ]; then
-        echo "Using curated headlines: ${base}.headlines.txt"
-        while IFS= read -r line; do
-            [ -n "$(echo "$line" | tr -d '[:space:]')" ] && RAW_LINES+=("$line")
-        done < "${base}.headlines.txt"
-    fi
-    if [ "${#RAW_LINES[@]}" -eq 0 ]; then
-        local pool=()
-        if [ -f "$INFO_FILE" ]; then
-            while IFS= read -r line; do
-                [ -n "$(echo "$line" | tr -d '[:space:]')" ] && pool+=("$line")
-            done < "$INFO_FILE"
-        fi
-        [ "${#pool[@]}" -eq 0 ] && pool=("${DEFAULT_HEADLINES[@]}")
-        while IFS= read -r line; do
-            RAW_LINES+=("$line")
-        done < <(printf '%s\n' "${pool[@]}" | shuf)
-    fi
-
-    FACTS=()
-    if [ -f "${base}.facts.txt" ]; then
-        echo "Using curated facts: ${base}.facts.txt"
-        while IFS= read -r line; do
-            [ -n "$(echo "$line" | tr -d '[:space:]')" ] && FACTS+=("$line")
-        done < "${base}.facts.txt"
-    fi
-    if [ "${#FACTS[@]}" -eq 0 ]; then
-        local fpool=()
-        if [ -f "facts.txt" ]; then
-            while IFS= read -r line; do
-                [ -n "$(echo "$line" | tr -d '[:space:]')" ] && fpool+=("$line")
-            done < "facts.txt"
-        fi
-        [ "${#fpool[@]}" -eq 0 ] && fpool=("${DEFAULT_FACTS[@]}")
-        while IFS= read -r line; do
-            FACTS+=("$line")
-        done < <(printf '%s\n' "${fpool[@]}" | shuf)
-    fi
-
-    N=${#RAW_LINES[@]}
-    CYCLE=$((N * SLOT))
-    echo "This video: $N headline(s), rotation cycle ${CYCLE}s"
-
-    for i in "${!RAW_LINES[@]}"; do
-        idx=$((i + 1))
-        echo "${RAW_LINES[$i]}" | fold -s -w 25 > "$ASSET_DIR/headline${idx}.txt"
-    done
-
-    MAX_HEADLINE_LINES=1
-    for i in "${!RAW_LINES[@]}"; do
-        idx=$((i + 1))
-        lines=$(grep -c '' "$ASSET_DIR/headline${idx}.txt")
-        [ "$lines" -gt "$MAX_HEADLINE_LINES" ] && MAX_HEADLINE_LINES=$lines
-    done
-    echo "Longest headline wraps to $MAX_HEADLINE_LINES line(s)."
-
-    HEADLINE_Y=300
-    FACT_LABEL_Y=$((HEADLINE_Y + MAX_HEADLINE_LINES * HEADLINE_LINE_H + 45))
-    FACT_TEXT_Y=$((FACT_LABEL_Y + 33))
-
-    FACT_N=${#FACTS[@]}
-    FACT_CYCLE=$((FACT_N * FACT_SLOT))
-    for i in "${!FACTS[@]}"; do
-        idx=$((i + 1))
-        echo "${FACTS[$i]}" | fold -s -w 23 > "$ASSET_DIR/fact${idx}.txt"
-    done
-
-    #########################################
-    # Filter chain: video + overlay + info text
-    #########################################
     CHAIN="[0:v]scale=${OUT_W}:${OUT_H}:force_original_aspect_ratio=decrease,pad=${OUT_W}:${OUT_H}:(ow-iw)/2:(oh-ih)/2:black[video];"
     CHAIN+="[1:v]scale=${OUT_W}:${OUT_H}:flags=fast_bilinear[ovl];"
     CHAIN+="[ovl][video]overlay=0:0[base];"
@@ -464,55 +320,19 @@ prepare_video_content() {
     build_labels_chain "$url"
     CHAIN+="$LABELS_CHAIN"
 
-    # Layout note: the video is assumed to have its own title (top-left, down
-    # to y~110), a LIVE badge (top-right, down to y~65) and a credit line
-    # (bottom-left, y~1045). So there is no LIVE badge here, the info block
-    # starts below y=120, the credits/clock/stats sit top-right under the
-    # video's LIVE badge, and the watermark is bottom-right.
-    # Adjust the y values below if your black hole video has a different layout.
+    # Top-left LIVE ticker: dark pill, blinking red dot, "LIVE", UTC clock
+    CHAIN+="${LABELS_OUT}drawbox=x=$((LIVE_X - 12)):y=$((LIVE_Y - 8)):w=470:h=48:color=black@0.55:t=fill[t1];"
+    CHAIN+="[t1]drawbox=x=${LIVE_X}:y=$((LIVE_Y + 6)):w=16:h=16:color=${RED}:t=fill:enable='lt(mod(t\,1)\,0.6)'[t2];"
+    CHAIN+="[t2]drawtext=fontfile=${FONT}:text='LIVE':fontcolor=white:fontsize=30:x=$((LIVE_X + 28)):y=${LIVE_Y}:${SHADOW}[t3];"
+    CHAIN+="[t3]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/clock.txt:reload=1:fontcolor=${GOLD}:fontsize=22:x=$((LIVE_X + 110)):y=$((LIVE_Y + 5)):${SHADOW}[t4];"
 
-    # Credits / clock / stats (right-aligned, top-right, below the video's own LIVE badge)
-    CHAIN+="${LABELS_OUT}drawtext=fontfile=${FONT}:text='Credit\: Video designed by Technical Talk India':fontcolor=white@0.9:fontsize=22:x=1870-text_w:y=90:${SHADOW}[p9];"
-    CHAIN+="[p9]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/clock.txt:reload=1:fontcolor=${GOLD}:fontsize=21:x=1870-text_w:y=120:${SHADOW}[p10];"
-    CHAIN+="[p10]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/subs.txt:reload=1:fontcolor=white@0.85:fontsize=19:x=1870-text_w:y=148:${SHADOW}[p10b];"
+    # Credit + stats (right side)
+    CHAIN+="[t4]drawtext=fontfile=${FONT}:text='Credit\: Video designed by Technical Talk India':fontcolor=white@0.9:fontsize=22:x=1870-text_w:y=90:${SHADOW}[p9];"
+    CHAIN+="[p9]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/subs.txt:reload=1:fontcolor=white@0.85:fontsize=19:x=1870-text_w:y=148:${SHADOW}[p10b];"
     CHAIN+="[p10b]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/viewers.txt:reload=1:fontcolor=white@0.85:fontsize=19:x=1870-text_w:y=174:${SHADOW}[p10c];"
 
-    # Title (below the video's own title)
-    CHAIN+="[p10c]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/title1.txt:fontcolor=white:fontsize=39:x=50:y=150:${SHADOW}[p11];"
-    CHAIN+="[p11]drawbox=x=50:y=210:w=620:h=3:color=${GOLD}@0.8:t=fill[p13];"
-
-    # Header + eyebrow
-    CHAIN+="[p13]drawbox=x=50:y=234:w=12:h=12:color=${GOLD}:t=fill[p14];"
-    CHAIN+="[p14]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/header.txt:fontcolor=${GOLD}:fontsize=22:x=74:y=230:${SHADOW}[p15];"
-    CHAIN+="[p15]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/eyebrow.txt:fontcolor=${GOLD}@0.9:fontsize=18:x=50:y=270:${SHADOW}[p16];"
-
-    # Rotating headlines
-    local prev="p16"
-    for i in "${!RAW_LINES[@]}"; do
-        idx=$((i + 1))
-        local start=$((i * SLOT))
-        local end=$((start + SLOT))
-        local nxt="h${idx}"
-        local ALPHA="if(between(mod(t\,${CYCLE})\,${start}\,${end})\,if(lt(mod(t\,${CYCLE})-${start}\,0.6)\,(mod(t\,${CYCLE})-${start})/0.6\,if(gt(mod(t\,${CYCLE})-${start}\,${SLOT}-0.6)\,(${end}-mod(t\,${CYCLE}))/0.6\,1))\,0)"
-        CHAIN+="[${prev}]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/headline${idx}.txt:fontcolor=white:fontsize=${HEADLINE_FONTSIZE}:line_spacing=${HEADLINE_LINE_SPACING}:x=50:y=${HEADLINE_Y}:alpha='${ALPHA}':${SHADOW}[${nxt}];"
-        prev="$nxt"
-    done
-
-    # Rotating "Did you know" facts
-    CHAIN+="[${prev}]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/fact_label.txt:fontcolor=${GOLD}@0.9:fontsize=18:x=50:y=${FACT_LABEL_Y}:${SHADOW}[fp2];"
-    prev="fp2"
-    for i in "${!FACTS[@]}"; do
-        idx=$((i + 1))
-        local start=$((i * FACT_SLOT))
-        local end=$((start + FACT_SLOT))
-        local nxt="f${idx}"
-        local FALPHA="if(between(mod(t\,${FACT_CYCLE})\,${start}\,${end})\,if(lt(mod(t\,${FACT_CYCLE})-${start}\,0.6)\,(mod(t\,${FACT_CYCLE})-${start})/0.6\,if(gt(mod(t\,${FACT_CYCLE})-${start}\,${FACT_SLOT}-0.6)\,(${end}-mod(t\,${FACT_CYCLE}))/0.6\,1))\,0)"
-        CHAIN+="[${prev}]drawtext=fontfile=${FONT}:textfile=${ASSET_DIR}/fact${idx}.txt:fontcolor=white@0.95:fontsize=24:line_spacing=10:x=50:y=${FACT_TEXT_Y}:alpha='${FALPHA}':${SHADOW}[${nxt}];"
-        prev="$nxt"
-    done
-
     BASE_CHAIN="$CHAIN"
-    FACT_END="$prev"
+    FACT_END="p10c"
 }
 
 #############################################
